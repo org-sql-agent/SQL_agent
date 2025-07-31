@@ -59,25 +59,63 @@ def train_model(user_args: dict):
     return model, X_cols, y_col, model_score
 
 
-def predict_feature(user_args: dict):
-    model, X_cols, y_col, model_score = train_model(user_args)
+def predict_feature(params: dict):
+    import pandas as pd
+    import sqlite3
+    import numpy as np
+    from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+    from sklearn.linear_model import LogisticRegression, LinearRegression
+    from sklearn.metrics import classification_report, mean_squared_error
 
-    # 準備要預測的單筆資料
-    input_data = [user_args[col] for col in X_cols]
-    input_df = pd.DataFrame([input_data], columns=X_cols)
+    target = params["target"]
+    features = [f for f in ["Pclass", "Sex", "Age", "Fare", "Survived"] if f != target]
+    model_name = params.get("model_name")  # 可選參數
 
-    # 執行預測
-    prediction = model.predict(input_df)[0]
+    # 載入資料
+    conn = sqlite3.connect("titanic.db")
+    df = pd.read_sql_query("SELECT * FROM passengers", conn)
+    conn.close()
+    df = df[features + [target]].dropna()
+    df["Sex"] = df["Sex"].map({"male": 0, "female": 1})
 
-    return {
-        "status": "success",
-        "prediction": prediction,
-        "target_feature": y_col,
-        "message": f"使用的模型:LogisticRegression，模型的準確度:{model_score}，預測結果: {prediction}，對應的特徵為 {y_col}",
+    X, y = df[features], df[target]
+    is_classification = y.nunique() <= 10 and y.dtype in [int, 'int64']
+
+    # 🔍 模型選擇邏輯
+    if not model_name:
+        model_name = (
+            "RandomForestClassifier" if is_classification else "RandomForestRegressor"
+        )
+
+    model_map = {
+        "RandomForestClassifier": RandomForestClassifier(),
+        "LogisticRegression": LogisticRegression(max_iter=1000),
+        "RandomForestRegressor": RandomForestRegressor(),
+        "LinearRegression": LinearRegression()
     }
 
+    if model_name not in model_map:
+        return {"error": f"未知模型: {model_name}"}
 
-# 儲存模型
+    model = model_map[model_name]
+    model.fit(X, y)
 
-# with open("model/titanic_model.pkl", "wb") as f:
-#     pickle.dump(model, f)
+    # 預測
+    input_data = pd.DataFrame([params], columns=features)
+    predicted = model.predict(input_data)[0]
+
+    # 信心度
+    confidence = None
+    if is_classification and hasattr(model, "predict_proba"):
+        confidence = float(model.predict_proba(input_data).max())
+
+    result = {
+        "target": str(target),
+        "features_used": [str(f) for f in features],
+        "model_name": str(model_name),
+        "predicted": predicted.item() if hasattr(predicted, 'item') else predicted,
+        "confidence": float(confidence) if confidence is not None else None,
+        "feature_importance": [float(x) for x in model.feature_importances_] if hasattr(model, "feature_importances_") else [],
+    }
+
+    return result

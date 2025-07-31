@@ -4,7 +4,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from functions import query_database
 from train_model import predict_feature
-
+import json
 load_dotenv()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -28,34 +28,38 @@ tools = [
             },
         },
     },
-    {
+        {
         "type": "function",
         "function": {
             "name": "predict_feature",
-            "description": "預測問題，例如預測性別、艙等、票價或是否生還",
+            "description": "即時訓練模型並預測指定特徵，例如預測性別、艙等、票價或是否生還",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "Pclass": {"type": "integer", "description": "艙等（1, 2, 3）"},
-                    "Sex": {
-                        "type": "integer",
-                        "description": "性別：male=1 或 female=0",
-                    },
+                    "Sex": {"type": "integer", "description": "性別：male=0，female=1"},
                     "Age": {"type": "number", "description": "年齡"},
                     "Fare": {"type": "number", "description": "票價"},
-                    "Survived": {
-                        "type": "integer",
-                        "description": "是否生還（0 或 1）",
-                    },
+                    "Survived": {"type": "integer", "description": "是否生還（0 或 1）"},
                     "target": {
                         "type": "string",
                         "enum": ["Pclass", "Sex", "Age", "Fare", "Survived"],
-                        "description": "分析出要預測的特徵",
+                        "description": "要預測的欄位",
                     },
+                    "model_name": {
+                        "type": "string",
+                        "enum": [
+                            "RandomForestClassifier",
+                            "LogisticRegression",
+                            "RandomForestRegressor",
+                            "LinearRegression"
+                        ],
+                        "description": "要使用的模型名稱，若不指定則根據任務自動判斷"
+                    }
                 },
-                "required": ["Pclass", "Sex", "Age", "Fare", "Survived", "target"],
-            },
-        },
+                "required": ["target"]
+            }
+        }
     },
 ]
 
@@ -66,7 +70,6 @@ def ai_agent(history, user_input):
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
-            {"role": "user", "content": user_input},
             {
                 "role": "system",
                 "content": """
@@ -95,14 +98,30 @@ Embarked: 登船港口。
 3. 根據查詢結果，自行產生 ECharts 所需的 option JSON
 4. 回傳 JSON 格式的圖表配置（option），不要轉成圖片，也不要使用 plot_data。
 
-當使用者要求預測時:
-1. 根據使用者的問題，確認要預測的特徵與給定的資訊，有給定資訊就是訓練特徵，未給的資訊就是預測標籤。
-2. 使用者未輸入的資訊，請給定 None。 
-3. 舉例: User: 票價8塊的20歲女生生還了，他是住在哪個艙等? Agent: X:{'Pclass':0,'Sex': 0, 'Age': 20, 'Fare': 8.0, 'Survived': 1,target:Pclass }。
+當使用者要求預測時：
+
+1. 根據使用者的問題，確認要預測的特徵（target）與給定的欄位（features），有給定值的就是訓練用特徵，未給的欄位即為要預測的目標欄位。
+2. 所有未給的欄位請填入 None。
+3. 預測功能會即時訓練模型，不需要事先訓練。模型將根據目標欄位自動選擇分類或回歸模型。
+4. 如有需要，也可使用者明確指定模型名稱（model_name），支援：`RandomForestClassifier`, `LogisticRegression`, `RandomForestRegressor`, `LinearRegression`。
+5. 輸出結果將包括預測值、信心度（若可用）、特徵重要性，並自動以圖表呈現。
+
+舉例：
+User: 票價8塊的20歲女生生還了，她住在哪個艙等？
+Agent tool_call: predict_feature(
+  {
+    "Pclass": None,
+    "Sex": 0,
+    "Age": 20,
+    "Fare": 8.0,
+    "Survived": 1,
+    "target": "Pclass"
+  }
+)
 """,
             },
         ]
-        + history,
+        + history + [{"role": "user", "content": user_input}],
         tools=tools,
         tool_choice="auto",
     )
@@ -112,7 +131,7 @@ Embarked: 登船港口。
     if message.tool_calls:
         for tool_call in message.tool_calls:
             function_name = tool_call.function.name
-            arguments = eval(tool_call.function.arguments)
+            arguments = json.loads(tool_call.function.arguments)
             print(f"Calling function: {function_name} with arguments: {arguments}")
 
             if function_name == "query_database":
@@ -164,8 +183,60 @@ Embarked: 登船港口。
                     return {"type": "text", "data": None, "content": result["content"]}
 
             elif function_name == "predict_feature":
-                print(f"Predicting survival with arguments: {arguments}")
+                print(f"Predicting with arguments: {arguments}")
                 result = predict_feature(arguments)
+                history.append({
+                    "role": "function",
+                    "name": "predict_feature",
+                    "content": json.dumps(result)
+                })
+                # 用 GPT 解釋預測結果
+                explain_response = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "你是一個 Titanic 機器學習預測分析助手。請根據模型預測結果與特徵，簡要用中文解釋模型預測了什麼、可信度為何，以及哪些特徵對結果最重要。",
+                        },
+                        {"role": "user", "content": f"使用者問題：{user_input}\n預測結果：{result}"},
+                    ]
+                )
+                explanation = explain_response.choices[0].message.content.strip()
+
+                # 如果有 feature importance，就畫圖
+                chart_data = result.get("feature_importance", [])
+                if chart_data:
+                    chart_response = client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": "你是一個資料視覺化助手，請根據特徵與重要性分數，產生一份 Apache ECharts 的 option JSON 配置，用來畫出特徵重要性的條狀圖。只回傳 JSON。",
+                            },
+                            {
+                                "role": "user",
+                                "content": f"特徵：{result['features_used']}\n重要性：{result['feature_importance']}",
+                            },
+                        ],
+                    )
+                    echarts_json = chart_response.choices[0].message.content.strip()
+
+                    history.append({
+                        "role": "assistant",
+                        "type": "echarts",
+                        "content": echarts_json,
+                        "summary": explanation
+                    })
+
+                    return {
+                        "type": "echarts",
+                        "content": echarts_json,
+                        "summary": explanation
+                    }
+
+                # 沒有圖表就純回傳文字
+                history.append({"role": "assistant", "content": explanation})
+                return {"type": "text", "content": explanation}
 
             else:
                 result = "未知功能"
