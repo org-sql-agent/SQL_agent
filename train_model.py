@@ -4,32 +4,22 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import LabelEncoder
 
-
-# 載入資料
-
-
 def train_model(user_args: dict):
     print("開始訓練模型...")
 
-    # 讀取 Titanic 資料集
     df = pd.read_csv("data/train.csv")
     print("資料集載入完成，開始特徵工程...")
     df = df[["Pclass", "Sex", "Age", "Fare", "Survived"]]
 
-    # 特徵工程
     df["Sex"] = LabelEncoder().fit_transform(df["Sex"])
     df["Age"].fillna(df["Age"].mean(), inplace=True)
     df["Fare"].fillna(df["Fare"].mean(), inplace=True)
 
-    # 轉換 user_args 的鍵名
     user_args_fixed = {k: v for k, v in user_args.items()}
     print(f"使用者輸入的欄位: {user_args_fixed}")
-    # 特徵 X 是使用者有給值的欄位
 
-    # 找出 y_col
     y_col = [user_args["target"]]
 
-    # 找出 X_col
     X_cols = [k for k in user_args if k not in ["target", user_args["target"]]]
 
     print(f"X 欄位: {X_cols}, y 欄位: {y_col}")
@@ -42,11 +32,9 @@ def train_model(user_args: dict):
     y_col = y_col[0]
     print(f"使用欄位作為 X: {X_cols}，預測目標 Y: {y_col}")
 
-    # 建立 X 與 y
     X = df[X_cols]
     y = df[y_col]
 
-    # 建立模型
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
@@ -69,9 +57,8 @@ def predict_feature(params: dict):
 
     target = params["target"]
     features = [f for f in ["Pclass", "Sex", "Age", "Fare", "Survived"] if f != target]
-    model_name = params.get("model_name")  # 可選參數
+    model_name = params.get("model_name") 
 
-    # 載入資料
     conn = sqlite3.connect("titanic.db")
     df = pd.read_sql_query("SELECT * FROM passengers", conn)
     conn.close()
@@ -81,7 +68,6 @@ def predict_feature(params: dict):
     X, y = df[features], df[target]
     is_classification = y.nunique() <= 10 and y.dtype in [int, 'int64']
 
-    # 🔍 模型選擇邏輯
     if not model_name:
         model_name = (
             "RandomForestClassifier" if is_classification else "RandomForestRegressor"
@@ -100,11 +86,9 @@ def predict_feature(params: dict):
     model = model_map[model_name]
     model.fit(X, y)
 
-    # 預測
     input_data = pd.DataFrame([params], columns=features)
     predicted = model.predict(input_data)[0]
 
-    # 信心度
     confidence = None
     if is_classification and hasattr(model, "predict_proba"):
         confidence = float(model.predict_proba(input_data).max())

@@ -9,7 +9,6 @@ load_dotenv()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# 定義 function 給 GPT
 tools = [
     {
         "type": "function",
@@ -139,7 +138,6 @@ Agent tool_call: predict_feature(
                 print(f"Function result: {result}")
 
                 if result["status"] == "success":
-                    # 用 GPT 畫圖 JSON
                     explain_response = client.chat.completions.create(
                         model="gpt-4o",
                         messages=[
@@ -153,7 +151,6 @@ Agent tool_call: predict_feature(
 
                     echarts_json = explain_response.choices[0].message.content.strip()
 
-                    # 用 GPT 幫圖表加中文摘要
                     summary_response = client.chat.completions.create(
                         model="gpt-4o",
                         messages=[
@@ -190,7 +187,7 @@ Agent tool_call: predict_feature(
                     "name": "predict_feature",
                     "content": json.dumps(result)
                 })
-                # 用 GPT 解釋預測結果
+
                 explain_response = client.chat.completions.create(
                     model="gpt-4o",
                     messages=[
@@ -203,7 +200,6 @@ Agent tool_call: predict_feature(
                 )
                 explanation = explain_response.choices[0].message.content.strip()
 
-                # 如果有 feature importance，就畫圖
                 chart_data = result.get("feature_importance", [])
                 if chart_data:
                     chart_response = client.chat.completions.create(
@@ -234,14 +230,12 @@ Agent tool_call: predict_feature(
                         "summary": explanation
                     }
 
-                # 沒有圖表就純回傳文字
                 history.append({"role": "assistant", "content": explanation})
                 return {"type": "text", "content": explanation}
 
             else:
                 result = "未知功能"
 
-        # 第二次請求：將結果交給 GPT 生成自然語言回應
         print(f"Function result: {result}")
         final_response = client.chat.completions.create(
             model="gpt-4o",
@@ -260,7 +254,6 @@ Agent tool_call: predict_feature(
         return {"type": "text", "content": answer}
 
     else:
-        # GPT 沒有選擇 function，直接回應
         answer = message.content
         history.append({"role": "assistant", "content": answer})
         return {"type": "text", "content": answer}

@@ -7,7 +7,6 @@ import matplotlib
 import sqlite3
 from train_model import train_model
 
-# 載入資料 & 模型
 df = pd.read_csv("data/train.csv")
 with open("model/titanic_model.pkl", "rb") as f:
     model = pickle.load(f)
