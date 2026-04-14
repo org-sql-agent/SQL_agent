@@ -1,7 +1,26 @@
-version: "3.9"
 services:
-  streamlit:
+  api:
     build: .
-    container_name: titanic-app
+    container_name: sql-agent-api
+    command: python -m uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+
+  ui:
+    build: .
+    container_name: sql-agent-ui
+    command: python -m streamlit run app/api/ui.py --server.port=1111 --server.address=0.0.0.0
     ports:
       - "1111:1111"
+    volumes:
+      - .:/app
+    environment:
+      SERVICE_API_URL: http://api:8080/Service
+    env_file:
+      - .env
+    depends_on:
+      - api

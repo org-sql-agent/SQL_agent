@@ -1,10 +1,12 @@
-# agent.py
-import os
-from openai import OpenAI
-from dotenv import load_dotenv
-from functions import query_database
-from train_model import predict_feature
 import json
+import os
+
+from dotenv import load_dotenv
+from openai import OpenAI
+
+from app.db.database import query_database
+from model.train_model import predict_feature
+
 load_dotenv()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -27,7 +29,7 @@ tools = [
             },
         },
     },
-        {
+    {
         "type": "function",
         "function": {
             "name": "predict_feature",
@@ -177,6 +179,7 @@ Agent tool_call: predict_feature(
                         "summary": summary
                     }
                 else:
+                    print(f"Database query error: {result}")
                     return {"type": "text", "data": None, "content": result["content"]}
 
             elif function_name == "predict_feature":

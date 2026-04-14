@@ -1,13 +1,15 @@
 import pandas as pd
 import pickle
-from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
+
+from app.core.service.config import DATABASE_PATH, TRAIN_DATA_PATH
 
 def train_model(user_args: dict):
     print("開始訓練模型...")
 
-    df = pd.read_csv("data/train.csv")
+    df = pd.read_csv(TRAIN_DATA_PATH)
     print("資料集載入完成，開始特徵工程...")
     df = df[["Pclass", "Sex", "Age", "Fare", "Survived"]]
 
@@ -59,7 +61,7 @@ def predict_feature(params: dict):
     features = [f for f in ["Pclass", "Sex", "Age", "Fare", "Survived"] if f != target]
     model_name = params.get("model_name") 
 
-    conn = sqlite3.connect("titanic.db")
+    conn = sqlite3.connect("/Users/emma/david/SQL_agent/model/titanic.db")
     df = pd.read_sql_query("SELECT * FROM passengers", conn)
     conn.close()
     df = df[features + [target]].dropna()

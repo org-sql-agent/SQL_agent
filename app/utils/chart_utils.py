@@ -1,0 +1,1 @@
+CHART_HEIGHT = "500px"

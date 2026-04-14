@@ -16,11 +16,8 @@ RUN apt-get update && apt-get install -y \
 RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-COPY titanic.db /app/titanic.db
-
 COPY .env .env
 
-ENV PORT=1111
-EXPOSE ${PORT}
+ENV PYTHONPATH=/app
 
-CMD ["sh", "-c", "streamlit run app.py --server.port=${PORT} --server.address=0.0.0.0"]
+CMD ["sh", "-c", "streamlit run app/api/ui.py --server.port=1111 --server.address=0.0.0.0"]
