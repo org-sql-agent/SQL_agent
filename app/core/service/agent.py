@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from app.db.database import query_database
-from model.train_model import predict_feature
+from app.core.service.train_model import predict_feature
 
 load_dotenv()
 
