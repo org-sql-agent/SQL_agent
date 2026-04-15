@@ -4,8 +4,8 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from app.db.database import query_database
 from app.core.service.train_model import predict_feature
+from app.db.database import query_database
 
 load_dotenv()
 
@@ -41,7 +41,10 @@ tools = [
                     "Sex": {"type": "integer", "description": "性別：male=0，female=1"},
                     "Age": {"type": "number", "description": "年齡"},
                     "Fare": {"type": "number", "description": "票價"},
-                    "Survived": {"type": "integer", "description": "是否生還（0 或 1）"},
+                    "Survived": {
+                        "type": "integer",
+                        "description": "是否生還（0 或 1）",
+                    },
                     "target": {
                         "type": "string",
                         "enum": ["Pclass", "Sex", "Age", "Fare", "Survived"],
@@ -53,14 +56,14 @@ tools = [
                             "RandomForestClassifier",
                             "LogisticRegression",
                             "RandomForestRegressor",
-                            "LinearRegression"
+                            "LinearRegression",
                         ],
-                        "description": "要使用的模型名稱，若不指定則根據任務自動判斷"
-                    }
+                        "description": "要使用的模型名稱，若不指定則根據任務自動判斷",
+                    },
                 },
-                "required": ["target"]
-            }
-        }
+                "required": ["target"],
+            },
+        },
     },
 ]
 
@@ -122,7 +125,8 @@ Agent tool_call: predict_feature(
 """,
             },
         ]
-        + history + [{"role": "user", "content": user_input}],
+        + history
+        + [{"role": "user", "content": user_input}],
         tools=tools,
         tool_choice="auto",
     )
@@ -145,10 +149,13 @@ Agent tool_call: predict_feature(
                         messages=[
                             {
                                 "role": "system",
-                                "content": "你是一個資料視覺化助手，請根據 SQL 查詢結果資料，回傳一個 Apache ECharts 的 option JSON 配置，用來畫圖。只要回傳 JSON，其他文字請省略。"
+                                "content": "你是一個資料視覺化助手，請根據 SQL 查詢結果資料，回傳一個 Apache ECharts 的 option JSON 配置，用來畫圖。只要回傳 JSON，其他文字請省略。",
                             },
-                            {"role": "user", "content": f"資料如下：\n{result['data']}"},
-                        ]
+                            {
+                                "role": "user",
+                                "content": f"資料如下：\n{result['data']}",
+                            },
+                        ],
                     )
 
                     echarts_json = explain_response.choices[0].message.content.strip()
@@ -160,23 +167,28 @@ Agent tool_call: predict_feature(
                                 "role": "system",
                                 "content": "你是一個資料分析助理，請根據查詢結果資料與使用者的問題，簡要生成一段中文摘要，說明圖表趨勢或重點。",
                             },
-                            {"role": "user", "content": f"使用者的問題：{user_input}\n查詢結果：{result['data']}"},
-                        ]
+                            {
+                                "role": "user",
+                                "content": f"使用者的問題：{user_input}\n查詢結果：{result['data']}",
+                            },
+                        ],
                     )
 
                     summary = summary_response.choices[0].message.content.strip()
 
-                    history.append({
-                        "role": "assistant",
-                        "type": "echarts",
-                        "content": echarts_json,
-                        "summary": summary
-                    })
+                    history.append(
+                        {
+                            "role": "assistant",
+                            "type": "echarts",
+                            "content": echarts_json,
+                            "summary": summary,
+                        }
+                    )
 
                     return {
                         "type": "echarts",
                         "content": echarts_json,
-                        "summary": summary
+                        "summary": summary,
                     }
                 else:
                     print(f"Database query error: {result}")
@@ -185,11 +197,13 @@ Agent tool_call: predict_feature(
             elif function_name == "predict_feature":
                 print(f"Predicting with arguments: {arguments}")
                 result = predict_feature(arguments)
-                history.append({
-                    "role": "function",
-                    "name": "predict_feature",
-                    "content": json.dumps(result)
-                })
+                history.append(
+                    {
+                        "role": "function",
+                        "name": "predict_feature",
+                        "content": json.dumps(result),
+                    }
+                )
 
                 explain_response = client.chat.completions.create(
                     model="gpt-4o",
@@ -198,8 +212,11 @@ Agent tool_call: predict_feature(
                             "role": "system",
                             "content": "你是一個 Titanic 機器學習預測分析助手。請根據模型預測結果與特徵，簡要用中文解釋模型預測了什麼、可信度為何，以及哪些特徵對結果最重要。",
                         },
-                        {"role": "user", "content": f"使用者問題：{user_input}\n預測結果：{result}"},
-                    ]
+                        {
+                            "role": "user",
+                            "content": f"使用者問題：{user_input}\n預測結果：{result}",
+                        },
+                    ],
                 )
                 explanation = explain_response.choices[0].message.content.strip()
 
@@ -220,17 +237,19 @@ Agent tool_call: predict_feature(
                     )
                     echarts_json = chart_response.choices[0].message.content.strip()
 
-                    history.append({
-                        "role": "assistant",
-                        "type": "echarts",
-                        "content": echarts_json,
-                        "summary": explanation
-                    })
+                    history.append(
+                        {
+                            "role": "assistant",
+                            "type": "echarts",
+                            "content": echarts_json,
+                            "summary": explanation,
+                        }
+                    )
 
                     return {
                         "type": "echarts",
                         "content": echarts_json,
-                        "summary": explanation
+                        "summary": explanation,
                     }
 
                 history.append({"role": "assistant", "content": explanation})
@@ -260,7 +279,3 @@ Agent tool_call: predict_feature(
         answer = message.content
         history.append({"role": "assistant", "content": answer})
         return {"type": "text", "content": answer}
-    
-
-
-    

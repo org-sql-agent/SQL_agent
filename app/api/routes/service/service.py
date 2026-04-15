@@ -12,12 +12,10 @@ router = APIRouter()
 
 @router.post("/Service", response_model=OutputModel)
 async def service(input: InputModel) -> OutputModel:
-    
+
     history = [msg.model_dump() for msg in input.history]
     query = input.text
 
     result = ai_agent(history, query)
 
-
-    
     return OutputModel(data=result)

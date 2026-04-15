@@ -19,8 +19,8 @@ load_dotenv()
 async def lifespan(app: FastAPI):
     """應用的生命週期管理（啟動 / 關閉階段）"""
     logger.info("🚀 Starting application lifespan...")
-    #await init_core_mysql()
-    #await init_qdrant()
+    # await init_core_mysql()
+    # await init_qdrant()
 
     # await write_data()
 

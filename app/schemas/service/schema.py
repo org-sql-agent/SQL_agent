@@ -1,5 +1,7 @@
-from pydantic import BaseModel
 from typing import Literal
+
+from pydantic import BaseModel
+
 
 class HistoryMessage(BaseModel):
     role: Literal["user", "assistant", "function"]
@@ -7,6 +9,7 @@ class HistoryMessage(BaseModel):
     type: str | None = None
     summary: str | None = None
     data: dict | None = None
+
 
 class InputModel(BaseModel):
     text: str
