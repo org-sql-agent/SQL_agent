@@ -61,7 +61,7 @@ def predict_feature(params: dict):
     features = [f for f in ["Pclass", "Sex", "Age", "Fare", "Survived"] if f != target]
     model_name = params.get("model_name") 
 
-    conn = sqlite3.connect("/Users/emma/david/SQL_agent/model/titanic.db")
+    conn = sqlite3.connect(DATABASE_PATH)
     df = pd.read_sql_query("SELECT * FROM passengers", conn)
     conn.close()
     df = df[features + [target]].dropna()
