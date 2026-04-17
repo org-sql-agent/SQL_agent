@@ -21,8 +21,6 @@ if "history" not in st.session_state:
 
 if st.button("送出") and user_input.strip():
     with st.spinner("AI 分析中..."):
-        st.session_state["history"].append({"role": "user", "content": user_input})
-
         try:
             response = requests.post(
                 SERVICE_API_URL,
@@ -42,6 +40,7 @@ if st.button("送出") and user_input.strip():
             st.stop()
 
         print(f"AI Response type: {result['type']}")
+        st.session_state["history"].append({"role": "user", "content": user_input})
 
         assistant_message = {
             "role": "assistant",

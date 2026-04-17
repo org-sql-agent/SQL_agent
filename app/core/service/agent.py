@@ -83,7 +83,7 @@ def ai_agent(history, user_input):
 資料庫：SQLite titanic.db
 資料表 passengers，欄位：
 PassengerId: 乘客ID，
-Survived: 是否生還（0 = 否，1 = 是
+Survived: 是否生還（0 = 否，1 = 是,
 Pclass: 艙等（1 = 頭等艙，2 = 二等艙，3 = 三等艙,
 Name: 乘客姓名,
 Sex: "male" 表示男性，"female" 表示女性,
@@ -125,8 +125,7 @@ Agent tool_call: predict_feature(
 """,
             },
         ]
-        + history
-        + [{"role": "user", "content": user_input}],
+        + history,
         tools=tools,
         tool_choice="auto",
     )
@@ -192,7 +191,11 @@ Agent tool_call: predict_feature(
                     }
                 else:
                     print(f"Database query error: {result}")
-                    return {"type": "text", "data": None, "content": result["content"]}
+                    return {
+                        "type": "text",
+                        "data": None,
+                        "content": result.get("message", "資料庫查詢失敗"),
+                    }
 
             elif function_name == "predict_feature":
                 print(f"Predicting with arguments: {arguments}")

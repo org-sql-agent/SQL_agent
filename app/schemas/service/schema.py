@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class HistoryMessage(BaseModel):
@@ -13,7 +13,7 @@ class HistoryMessage(BaseModel):
 
 class InputModel(BaseModel):
     text: str
-    history: list[HistoryMessage] = []
+    history: list[HistoryMessage] = Field(default_factory=list)
 
 
 class OutputModel(BaseModel):
