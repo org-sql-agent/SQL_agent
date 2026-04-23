@@ -1,4 +1,3 @@
-import pickle
 import sqlite3
 
 import pandas as pd

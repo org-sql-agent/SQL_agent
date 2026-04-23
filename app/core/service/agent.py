@@ -9,9 +9,7 @@ from app.db.database import query_database
 
 load_dotenv()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-tools = [
+TOOLS = [
     {
         "type": "function",
         "function": {
@@ -67,16 +65,7 @@ tools = [
     },
 ]
 
-
-def ai_agent(history, user_input):
-    history.append({"role": "user", "content": user_input})
-
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {
-                "role": "system",
-                "content": """
+SYSTEM_PROMPT = """
 你是一個 Titanic AI 助理。
 你可以根據使用者問題，如果使用者問題需要訪問資料庫，將其轉換成 SQL 查詢，並使用 query_database 工具來獲取資料。
 不要直接回答，必須使用工具完成查詢。
@@ -122,148 +111,50 @@ Agent tool_call: predict_feature(
     "target": "Pclass"
   }
 )
-""",
-            },
-        ]
-        + history,
-        tools=tools,
-        tool_choice="auto",
-    )
+"""
 
-    message = response.choices[0].message
 
-    if message.tool_calls:
+class TitanicAgent:
+    def __init__(self):
+        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.tools = TOOLS
+        self.model = "gpt-4o"
+
+    def run(self, history: list, user_input: str) -> dict:
+        history.append({"role": "user", "content": user_input})
+
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "system", "content": SYSTEM_PROMPT}] + history,
+            tools=self.tools,
+            tool_choice="auto",
+        )
+
+        message = response.choices[0].message
+
+        if not message.tool_calls:
+            answer = message.content
+            history.append({"role": "assistant", "content": answer})
+            return {"type": "text", "content": answer}
+
+        result = None
         for tool_call in message.tool_calls:
             function_name = tool_call.function.name
             arguments = json.loads(tool_call.function.arguments)
             print(f"Calling function: {function_name} with arguments: {arguments}")
 
-            if function_name == "query_database":
-                result = query_database(arguments["sql_query"])
-                print(f"Function result: {result}")
-
-                if result["status"] == "success":
-                    explain_response = client.chat.completions.create(
-                        model="gpt-4o",
-                        messages=[
-                            {
-                                "role": "system",
-                                "content": "你是一個資料視覺化助手，請根據 SQL 查詢結果資料，回傳一個 Apache ECharts 的 option JSON 配置，用來畫圖。只要回傳 JSON，其他文字請省略。",
-                            },
-                            {
-                                "role": "user",
-                                "content": f"資料如下：\n{result['data']}",
-                            },
-                        ],
-                    )
-
-                    echarts_json = explain_response.choices[0].message.content.strip()
-
-                    summary_response = client.chat.completions.create(
-                        model="gpt-4o",
-                        messages=[
-                            {
-                                "role": "system",
-                                "content": "你是一個資料分析助理，請根據查詢結果資料與使用者的問題，簡要生成一段中文摘要，說明圖表趨勢或重點。",
-                            },
-                            {
-                                "role": "user",
-                                "content": f"使用者的問題：{user_input}\n查詢結果：{result['data']}",
-                            },
-                        ],
-                    )
-
-                    summary = summary_response.choices[0].message.content.strip()
-
-                    history.append(
-                        {
-                            "role": "assistant",
-                            "type": "echarts",
-                            "content": echarts_json,
-                            "summary": summary,
-                        }
-                    )
-
-                    return {
-                        "type": "echarts",
-                        "content": echarts_json,
-                        "summary": summary,
-                    }
-                else:
-                    print(f"Database query error: {result}")
-                    return {
-                        "type": "text",
-                        "data": None,
-                        "content": result.get("message", "資料庫查詢失敗"),
-                    }
-
-            elif function_name == "predict_feature":
-                print(f"Predicting with arguments: {arguments}")
-                result = predict_feature(arguments)
-                history.append(
-                    {
-                        "role": "function",
-                        "name": "predict_feature",
-                        "content": json.dumps(result),
-                    }
-                )
-
-                explain_response = client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "你是一個 Titanic 機器學習預測分析助手。請根據模型預測結果與特徵，簡要用中文解釋模型預測了什麼、可信度為何，以及哪些特徵對結果最重要。",
-                        },
-                        {
-                            "role": "user",
-                            "content": f"使用者問題：{user_input}\n預測結果：{result}",
-                        },
-                    ],
-                )
-                explanation = explain_response.choices[0].message.content.strip()
-
-                chart_data = result.get("feature_importance", [])
-                if chart_data:
-                    chart_response = client.chat.completions.create(
-                        model="gpt-4o",
-                        messages=[
-                            {
-                                "role": "system",
-                                "content": "你是一個資料視覺化助手，請根據特徵與重要性分數，產生一份 Apache ECharts 的 option JSON 配置，用來畫出特徵重要性的條狀圖。只回傳 JSON。",
-                            },
-                            {
-                                "role": "user",
-                                "content": f"特徵：{result['features_used']}\n重要性：{result['feature_importance']}",
-                            },
-                        ],
-                    )
-                    echarts_json = chart_response.choices[0].message.content.strip()
-
-                    history.append(
-                        {
-                            "role": "assistant",
-                            "type": "echarts",
-                            "content": echarts_json,
-                            "summary": explanation,
-                        }
-                    )
-
-                    return {
-                        "type": "echarts",
-                        "content": echarts_json,
-                        "summary": explanation,
-                    }
-
-                history.append({"role": "assistant", "content": explanation})
-                return {"type": "text", "content": explanation}
-
-            else:
+            handler = self._get_handler(function_name)
+            if handler is None:
                 result = "未知功能"
+                continue
+
+            response = handler(arguments, history, user_input)
+            if response is not None:
+                return response
 
         print(f"Function result: {result}")
-        final_response = client.chat.completions.create(
-            model="gpt-4o",
+        final_response = self.client.chat.completions.create(
+            model=self.model,
             messages=[
                 {
                     "role": "system",
@@ -278,7 +169,135 @@ Agent tool_call: predict_feature(
         history.append({"role": "assistant", "content": answer})
         return {"type": "text", "content": answer}
 
-    else:
-        answer = message.content
-        history.append({"role": "assistant", "content": answer})
-        return {"type": "text", "content": answer}
+    def _get_handler(self, function_name: str):
+        handlers = {
+            "query_database": self._handle_query_database,
+            "predict_feature": self._handle_predict_feature,
+        }
+        return handlers.get(function_name)
+
+    def _handle_query_database(
+        self, arguments: dict, history: list, user_input: str
+    ) -> dict | None:
+        result = query_database(arguments["sql_query"])
+        print(f"Function result: {result}")
+
+        if result["status"] != "success":
+            print(f"Database query error: {result}")
+            return {
+                "type": "text",
+                "data": None,
+                "content": result.get("message", "資料庫查詢失敗"),
+            }
+
+        echarts_json = self._generate_echarts(result["data"])
+        summary = self._generate_summary(user_input, result["data"])
+
+        history.append(
+            {
+                "role": "assistant",
+                "type": "echarts",
+                "content": echarts_json,
+                "summary": summary,
+            }
+        )
+        return {"type": "echarts", "content": echarts_json, "summary": summary}
+
+    def _handle_predict_feature(
+        self, arguments: dict, history: list, user_input: str
+    ) -> dict | None:
+        print(f"Predicting with arguments: {arguments}")
+        result = predict_feature(arguments)
+
+        history.append(
+            {
+                "role": "function",
+                "name": "predict_feature",
+                "content": json.dumps(result),
+            }
+        )
+
+        explanation = self._generate_prediction_explanation(user_input, result)
+
+        if result.get("feature_importance"):
+            echarts_json = self._generate_feature_importance_chart(result)
+            history.append(
+                {
+                    "role": "assistant",
+                    "type": "echarts",
+                    "content": echarts_json,
+                    "summary": explanation,
+                }
+            )
+            return {"type": "echarts", "content": echarts_json, "summary": explanation}
+
+        history.append({"role": "assistant", "content": explanation})
+        return {"type": "text", "content": explanation}
+
+    def _generate_echarts(self, data) -> str:
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "你是一個資料視覺化助手，請根據 SQL 查詢結果資料，回傳一個 Apache ECharts 的 option JSON 配置，用來畫圖。只要回傳 JSON，其他文字請省略。",
+                },
+                {"role": "user", "content": f"資料如下：\n{data}"},
+            ],
+        )
+        return response.choices[0].message.content.strip()
+
+    def _generate_summary(self, user_input: str, data) -> str:
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "你是一個資料分析助理，請根據查詢結果資料與使用者的問題，簡要生成一段中文摘要，說明圖表趨勢或重點。",
+                },
+                {
+                    "role": "user",
+                    "content": f"使用者的問題：{user_input}\n查詢結果：{data}",
+                },
+            ],
+        )
+        return response.choices[0].message.content.strip()
+
+    def _generate_prediction_explanation(self, user_input: str, result: dict) -> str:
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "你是一個 Titanic 機器學習預測分析助手。請根據模型預測結果與特徵，簡要用中文解釋模型預測了什麼、可信度為何，以及哪些特徵對結果最重要。",
+                },
+                {
+                    "role": "user",
+                    "content": f"使用者問題：{user_input}\n預測結果：{result}",
+                },
+            ],
+        )
+        return response.choices[0].message.content.strip()
+
+    def _generate_feature_importance_chart(self, result: dict) -> str:
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "你是一個資料視覺化助手，請根據特徵與重要性分數，產生一份 Apache ECharts 的 option JSON 配置，用來畫出特徵重要性的條狀圖。只回傳 JSON。",
+                },
+                {
+                    "role": "user",
+                    "content": f"特徵：{result['features_used']}\n重要性：{result['feature_importance']}",
+                },
+            ],
+        )
+        return response.choices[0].message.content.strip()
+
+
+_agent = TitanicAgent()
+
+
+def ai_agent(history: list, user_input: str) -> dict:
+    return _agent.run(history, user_input)
