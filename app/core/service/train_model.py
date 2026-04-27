@@ -1,13 +1,19 @@
+import sqlite3
+
 import pandas as pd
-import pickle
-from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
+
+from app.core.service.config import DATABASE_PATH, TRAIN_DATA_PATH
+
+ALL_FEATURES = ("Pclass", "Sex", "Age", "Fare", "Survived")
+
 
 def train_model(user_args: dict):
     print("開始訓練模型...")
 
-    df = pd.read_csv("data/train.csv")
+    df = pd.read_csv(TRAIN_DATA_PATH)
     print("資料集載入完成，開始特徵工程...")
     df = df[["Pclass", "Sex", "Age", "Fare", "Survived"]]
 
@@ -48,25 +54,20 @@ def train_model(user_args: dict):
 
 
 def predict_feature(params: dict):
-    import pandas as pd
-    import sqlite3
-    import numpy as np
     from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-    from sklearn.linear_model import LogisticRegression, LinearRegression
-    from sklearn.metrics import classification_report, mean_squared_error
+    from sklearn.linear_model import LinearRegression, LogisticRegression
 
     target = params["target"]
-    features = [f for f in ["Pclass", "Sex", "Age", "Fare", "Survived"] if f != target]
-    model_name = params.get("model_name") 
+    model_name = params.get("model_name")
+    features = [f for f in ALL_FEATURES if f != target]
 
-    conn = sqlite3.connect("titanic.db")
-    df = pd.read_sql_query("SELECT * FROM passengers", conn)
-    conn.close()
-    df = df[features + [target]].dropna()
+    with sqlite3.connect(DATABASE_PATH) as conn:
+        df = pd.read_sql_query("SELECT * FROM passengers", conn)
+
     df["Sex"] = df["Sex"].map({"male": 0, "female": 1})
-
-    X, y = df[features], df[target]
-    is_classification = y.nunique() <= 10 and y.dtype in [int, 'int64']
+    feature_df = df[features + [target]].dropna().copy()
+    X, y = feature_df[features], feature_df[target]
+    is_classification = y.nunique() <= 10 and y.dtype in [int, "int64"]
 
     if not model_name:
         model_name = (
@@ -74,16 +75,16 @@ def predict_feature(params: dict):
         )
 
     model_map = {
-        "RandomForestClassifier": RandomForestClassifier(),
-        "LogisticRegression": LogisticRegression(max_iter=1000),
-        "RandomForestRegressor": RandomForestRegressor(),
-        "LinearRegression": LinearRegression()
+        "RandomForestClassifier": RandomForestClassifier,
+        "LogisticRegression": lambda: LogisticRegression(max_iter=1000),
+        "RandomForestRegressor": RandomForestRegressor,
+        "LinearRegression": LinearRegression,
     }
 
     if model_name not in model_map:
         return {"error": f"未知模型: {model_name}"}
 
-    model = model_map[model_name]
+    model = model_map[model_name]()
     model.fit(X, y)
 
     input_data = pd.DataFrame([params], columns=features)
@@ -97,9 +98,13 @@ def predict_feature(params: dict):
         "target": str(target),
         "features_used": [str(f) for f in features],
         "model_name": str(model_name),
-        "predicted": predicted.item() if hasattr(predicted, 'item') else predicted,
+        "predicted": predicted.item() if hasattr(predicted, "item") else predicted,
         "confidence": float(confidence) if confidence is not None else None,
-        "feature_importance": [float(x) for x in model.feature_importances_] if hasattr(model, "feature_importances_") else [],
+        "feature_importance": (
+            [float(x) for x in model.feature_importances_]
+            if hasattr(model, "feature_importances_")
+            else []
+        ),
     }
 
     return result

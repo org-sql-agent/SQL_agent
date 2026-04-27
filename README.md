@@ -34,7 +34,7 @@ OPENAI_API_KEY=your_api_key_here
 ### 3. Initialize the Database
 Run the script to create the local SQLite database (`titanic.db`):
 ```bash
-python create_db.py
+python -m app.db.init_db
 ```
 
 ### 4. Build and Run with Docker Compose
@@ -67,6 +67,24 @@ The agent will provide both **predictions** and **visualizations** in real time.
 - **SQLite** (Titanic dataset storage)
 - **Docker & Docker Compose** (easy deployment)
 - **OpenAI API** (LLM reasoning and memory)
+
+## Project Structure
+```text
+sql_agent/
+├── app/
+│   ├── api/
+│   ├── core/
+│   ├── db/
+│   ├── schemas/
+│   └── utils/
+├── data/
+├── model/
+├── notebooks/
+├── docker-compose.yml
+├── Dockerfile
+├── Makefile
+└── README.md
+```
 
 ---
 

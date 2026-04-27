@@ -1,0 +1,38 @@
+# pyproject.toml
+[project]
+name = "sql-agent"
+version = "0.1.0"
+description = "根據資料庫中的資料，即時分析預測、視覺化的代理"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi>=0.116.0",
+  "uvicorn[standard]>=0.35.0",
+  "pydantic>=2.11.0",
+  "python-multipart>=0.0.20",
+  "isort (>=8.0.1,<9.0.0)",
+  "flake8 (>=7.3.0,<8.0.0)",
+  "black (>=26.3.0,<27.0.0)",
+  "openai (>=2.26.0,<3.0.0)",
+  "pandas (>=3.0.2,<4.0.0)",
+  "scikit-learn (>=1.8.0,<2.0.0)",
+  "streamlit (>=1.56.0,<2.0.0)",
+  "streamlit-echarts (>=0.6.0,<0.7.0)",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.poetry]
+package-mode = false
+
+[tool.isort]
+profile = "black"
+line_length = 127
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+combine_as_imports = true
+known_first_party = ["app", "tests"]
+skip_gitignore = true
