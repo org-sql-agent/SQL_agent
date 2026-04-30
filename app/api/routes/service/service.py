@@ -17,6 +17,6 @@ async def service(input: InputModel) -> OutputModel:
     query = input.text
 
     # Run sync heavy work in threadpool to avoid blocking event loop workers.
-    result = await run_in_threadpool(ai_agent, history, query)
+    result, compacted_base = await run_in_threadpool(ai_agent, history, query)
 
-    return OutputModel(data=result)
+    return OutputModel(data=result, llm_history=compacted_base)
