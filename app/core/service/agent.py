@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from app.core.compact import maybe_compact
 from app.core.service.train_model import predict_feature
 from app.db.database import query_database
 
@@ -120,12 +121,23 @@ class TitanicAgent:
         self.tools = TOOLS
         self.model = "gpt-4o"
 
-    def run(self, history: list, user_input: str) -> dict:
-        history.append({"role": "user", "content": user_input})
+    def run(self, history: list, user_input: str) -> tuple[dict, list]:
+        """
+        回傳 (result, compacted_base)：
+          - result        : 給前端渲染的回應內容
+          - compacted_base: compact 後的舊 history（不含本次 user/assistant）
+                            前端把它存進 llm_history，下次直接送這份，
+                            避免每次都重新壓縮完整的 display_history
+        """
+        # ── Compact ───────────────────────────────────────────────────────────
+        compacted_base = maybe_compact(history, user_input, self.client, self.model)
+        llm_history = list(compacted_base)
+        llm_history.append({"role": "user", "content": user_input})
 
+        # ── 第一次 LLM 呼叫 ──────────────────────────────────────────────────
         response = self.client.chat.completions.create(
             model=self.model,
-            messages=[{"role": "system", "content": SYSTEM_PROMPT}] + history,
+            messages=[{"role": "system", "content": SYSTEM_PROMPT}] + llm_history,
             tools=self.tools,
             tool_choice="auto",
         )
@@ -134,9 +146,9 @@ class TitanicAgent:
 
         if not message.tool_calls:
             answer = message.content
-            history.append({"role": "assistant", "content": answer})
-            return {"type": "text", "content": answer}
+            return {"type": "text", "content": answer}, compacted_base
 
+        # ── Tool dispatch ────────────────────────────────────────────────────
         result = None
         for tool_call in message.tool_calls:
             function_name = tool_call.function.name
@@ -148,10 +160,11 @@ class TitanicAgent:
                 result = "未知功能"
                 continue
 
-            response = handler(arguments, history, user_input)
+            response = handler(arguments, llm_history, user_input)
             if response is not None:
-                return response
+                return response, compacted_base
 
+        # ── 未知 tool fallback ───────────────────────────────────────────────
         print(f"Function result: {result}")
         final_response = self.client.chat.completions.create(
             model=self.model,
@@ -161,13 +174,12 @@ class TitanicAgent:
                     "content": "你是一個 Titanic AI 助理，請根據資料庫查詢結果或是預測結果回答",
                 },
             ]
-            + history
+            + llm_history
             + [{"role": "assistant", "content": f"資料庫回傳結果: {result}"}],
         )
 
         answer = final_response.choices[0].message.content
-        history.append({"role": "assistant", "content": answer})
-        return {"type": "text", "content": answer}
+        return {"type": "text", "content": answer}, compacted_base
 
     def _get_handler(self, function_name: str):
         handlers = {
@@ -299,5 +311,5 @@ class TitanicAgent:
 _agent = TitanicAgent()
 
 
-def ai_agent(history: list, user_input: str) -> dict:
+def ai_agent(history: list, user_input: str) -> tuple[dict, list]:
     return _agent.run(history, user_input)

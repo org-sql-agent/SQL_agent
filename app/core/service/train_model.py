@@ -88,6 +88,16 @@ def predict_feature(params: dict):
     model.fit(X, y)
 
     input_data = pd.DataFrame([params], columns=features)
+
+    # 使用者沒給的欄位（None → NaN），用訓練資料的均值/眾數填補，
+    # 讓 LogisticRegression、LinearRegression 等不支援 NaN 的模型也能正常運作。
+    for col in features:
+        if input_data[col].isna().any():
+            if pd.api.types.is_numeric_dtype(X[col]):
+                input_data[col] = input_data[col].fillna(X[col].mean())
+            else:
+                input_data[col] = input_data[col].fillna(X[col].mode()[0])
+
     predicted = model.predict(input_data)[0]
 
     confidence = None
