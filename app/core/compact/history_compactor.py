@@ -131,12 +131,10 @@ def maybe_compact(
         f"[Compactor] Context tokens ≈ {token_count} > {COMPACT_THRESHOLD}，觸發壓縮..."
     )
     compacted = _compact_history(history, client, model)
-    print(
-        f"[Compactor] 壓縮完成：{len(history)} → {len(compacted)} 筆訊息"
-    )
+    print(f"[Compactor] 壓縮完成：{len(history)} → {len(compacted)} 筆訊息")
 
     print("[Compactor] 壓縮後的 history 預覽：")
     for msg in compacted[:2]:  # 只印前兩筆（摘要佔位訊息）
         print(f"  - {msg['role']}: {msg['content'][:]}...")
-    
+
     return compacted

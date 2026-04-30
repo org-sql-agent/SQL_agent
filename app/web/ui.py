@@ -64,7 +64,9 @@ for i, msg in enumerate(st.session_state["display_history"]):
 # ── 輸入欄（固定在最底部）────────────────────────────────────────────────────
 
 
-user_input = st.chat_input("請輸入問題，例如：生還率多少？畫出生還率和艙等關係、預測我是否生還")
+user_input = st.chat_input(
+    "請輸入問題，例如：生還率多少？畫出生還率和艙等關係、預測我是否生還"
+)
 
 if user_input:
     # 立即顯示使用者訊息
