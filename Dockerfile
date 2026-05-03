@@ -16,8 +16,8 @@ RUN apt-get update && apt-get install -y \
 RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-COPY .env .env
 
 ENV PYTHONPATH=/app
 
-CMD ["sh", "-c", "streamlit run app/api/ui.py --server.port=1111 --server.address=0.0.0.0"]
+# 預設啟動 API（docker-compose 會依服務覆寫此指令）
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]

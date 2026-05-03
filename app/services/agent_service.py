@@ -90,7 +90,8 @@ Embarked: 登船港口。
 1. 根據使用者的問題，確認要預測的特徵（target）與給定的欄位（features），有給定值的就是訓練用特徵，未給的欄位即為要預測的目標欄位。
 2. 所有未給的欄位請填入 None。
 3. 預測功能會即時訓練模型，不需要事先訓練。模型將根據目標欄位自動選擇分類或回歸模型。
-4. 如有需要，也可使用者明確指定模型名稱（model_name），支援：`RandomForestClassifier`, `LogisticRegression`, `RandomForestRegressor`, `LinearRegression`。
+4. 如有需要，也可使用者明確指定模型名稱（model_name），
+   支援：`RandomForestClassifier`, `LogisticRegression`, `RandomForestRegressor`, `LinearRegression`。
 5. 輸出結果將包括預測值、信心度（若可用）、特徵重要性，並自動以圖表呈現。
 
 舉例：

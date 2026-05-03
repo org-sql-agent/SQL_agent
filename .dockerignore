@@ -1,1 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+*.egg-info/
+
+# 版本控制 & 編輯器
+.git/
+.gitignore
+.claude/
+
+# 設定檔（不燒進 image）
+.env
+.env.*
+!.env.example
+
+# Docker 自己
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# 開發工具
+.flake8
+pyproject.toml
+notebooks/
+makes/
+Makefile
+
+# Model 目錄（DB 在 runtime 產生）
 model/
+
+# 文件
+README.md
+LICENSE
