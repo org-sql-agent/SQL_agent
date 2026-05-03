@@ -208,5 +208,8 @@ __marimo__/
 
 titanic.db
 
+# Claude Code
+.claude/
+
 # macOS
 .DS_Store

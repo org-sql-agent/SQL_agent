@@ -3,16 +3,17 @@ import os
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import router
-from app.core.openapi_utils import build_openapi_schema
-from app.utils.logger import setup_logger
+load_dotenv()  # 先載入 env，確保後續 import 的 module 能讀到 OPENAI_API_KEY 等環境變數
 
-# --- 初始化 Logger & Env ---
+from fastapi import FastAPI  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+
+from app.api import router  # noqa: E402
+from app.utils.logger import setup_logger  # noqa: E402
+from app.utils.openapi_utils import build_openapi_schema  # noqa: E402
+
 logger = setup_logger("uvicorn.app")
-load_dotenv()
 
 
 @asynccontextmanager
