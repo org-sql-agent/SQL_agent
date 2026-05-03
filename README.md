@@ -1,94 +1,98 @@
 # Titanic Agent
 
-This project is a **Proof-of-Concept AI Agent** specialized in the Titanic dataset.  
-It demonstrates how an AI agent can integrate **short-term memory, visualization, and predictive modeling** to provide an interactive experience.
+A **Proof-of-Concept AI Agent** for the Titanic dataset.  
+Ask questions in natural language — the agent queries SQLite, runs ML predictions, and returns ECharts visualizations or text summaries.
 
 ---
 
 ## Features
-1. **Short-term memory** – remembers the context of your queries within a session.
-2. **Visualization** – generates plots and charts based on the Titanic dataset.
-3. **Real-time prediction** – given a passenger profile (e.g., *“a 30-year-old female in third class”*), the agent predicts survival probability and provides visual explanations.
 
-⚠️ Note:  
-This project is **for demonstration purposes only (POC-level)**.  
-It is **not designed for production use** and does not consider production-grade system architecture, scaling, or security requirements.  
-The goal is to showcase what modern AI agents can look like.
+1. **Short-term memory** – remembers context within a session
+2. **Visualization** – generates charts based on the Titanic dataset
+3. **Real-time prediction** – given a passenger profile, predicts survival probability with visual explanation
+
+⚠️ This project is for **demonstration purposes only**. Not intended for production use.
 
 ---
 
 ## Getting Started
 
 ### 1. Clone the Repository
+
 ```bash
 git clone <your-repo-url>
-cd Titanic-Agent
+cd SQL_agent
 ```
 
-### 2. Create a `.env` File
-Inside the project root, create a `.env` file with the following content:
-```env
-OPENAI_API_KEY=your_api_key_here
-```
+### 2. Set Up Environment Variables
 
-### 3. Initialize the Database
-Run the script to create the local SQLite database (`titanic.db`):
 ```bash
-python -m app.db.init_db
+cp .env.example .env
 ```
 
-### 4. Build and Run with Docker Compose
+Then open `.env` and fill in your OpenAI API key:
+
+```env
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o   # optional, defaults to gpt-4o
+```
+
+### 3. Start with Docker Compose
+
 ```bash
 docker compose up --build
 ```
 
-After the service starts, open your browser and visit:
+The database is initialized automatically on first start. Once running, open:
+
 ```
 http://localhost:1111
 ```
 
-You should now see the **Titanic Agent** interface.
-
 ---
 
-## Example Usage
-You can ask questions like:
-- *“Show me a survival prediction for a 30-year-old female in third class.”*  
-- *“Plot the age distribution of survivors and non-survivors.”*  
-- *“What’s the survival rate for first-class passengers under 18?”*  
+## Example Queries
 
-The agent will provide both **predictions** and **visualizations** in real time.
+- *"Show me a survival prediction for a 30-year-old female in third class."*
+- *"Plot the age distribution of survivors and non-survivors."*
+- *"What's the survival rate for first-class passengers under 18?"*
 
 ---
 
 ## Tech Stack
-- **Python 3.12**
-- **Streamlit** (frontend)
-- **SQLite** (Titanic dataset storage)
-- **Docker & Docker Compose** (easy deployment)
-- **OpenAI API** (LLM reasoning and memory)
+
+| | |
+|---|---|
+| API | FastAPI + Uvicorn |
+| LLM | OpenAI gpt-4o (tool calling) |
+| DB | SQLite |
+| ML | scikit-learn (fit per request, no persistence) |
+| Frontend | Streamlit + streamlit-echarts |
+| Container | Docker Compose |
 
 ## Project Structure
+
 ```text
-sql_agent/
+SQL_agent/
 ├── app/
 │   ├── api/
-│   ├── core/
+│   │   ├── routes/       # Router layer (HTTP only)
+│   │   └── schemas/      # Pydantic request/response models
+│   ├── services/         # Service layer (business logic)
 │   ├── db/
-│   ├── schemas/
-│   └── utils/
-├── data/
-├── model/
-├── notebooks/
+│   │   └── dao/          # DAO layer (SQLite access + ML)
+│   ├── config/           # Settings & constants
+│   ├── utils/
+│   └── web/              # Streamlit frontend
+├── data/                 # train.csv
+├── model/                # titanic.db (generated at runtime)
 ├── docker-compose.yml
 ├── Dockerfile
-├── Makefile
-└── README.md
+└── Makefile
 ```
 
 ---
 
 ## Disclaimer
-This project is **experimental and educational**.  
-It is intended to illustrate how AI agents can be built with modern tools.  
-**Do not use it in production** without significant modifications.
+
+Experimental and educational. Do not use in production without significant modifications.
