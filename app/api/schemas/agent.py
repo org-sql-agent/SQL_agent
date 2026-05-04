@@ -18,5 +18,4 @@ class InputModel(BaseModel):
 
 class OutputModel(BaseModel):
     data: dict
-    # compact 後的 LLM context，前端存著下次直接送，避免重複壓縮
     llm_history: list[dict] = Field(default_factory=list)

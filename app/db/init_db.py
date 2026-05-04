@@ -2,7 +2,7 @@ import sqlite3
 
 import pandas as pd
 
-from app.core.service.config import DATABASE_PATH, TRAIN_DATA_PATH
+from app.config.settings import DATABASE_PATH, TRAIN_DATA_PATH
 
 df = pd.read_csv(TRAIN_DATA_PATH)
 
