@@ -23,5 +23,7 @@ _agent_service = AgentService(_dao, _chart_service, _client, OPENAI_MODEL)
 @router.post("/Service", response_model=OutputModel)
 async def service(input: InputModel) -> OutputModel:
     history = [msg.model_dump() for msg in input.history]
-    result, compacted_base = await run_in_threadpool(_agent_service.run, history, input.text)
+    result, compacted_base = await run_in_threadpool(
+        _agent_service.run, history, input.text
+    )
     return OutputModel(data=result, llm_history=compacted_base)

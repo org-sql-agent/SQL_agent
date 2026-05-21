@@ -83,7 +83,9 @@ def maybe_compact(
     if token_count <= COMPACT_THRESHOLD:
         return list(history)
 
-    print(f"[Compactor] Context tokens ≈ {token_count} > {COMPACT_THRESHOLD}，觸發壓縮...")
+    print(
+        f"[Compactor] Context tokens ≈ {token_count} > {COMPACT_THRESHOLD}，觸發壓縮..."
+    )
     compacted = _compact_history(history, client, model)
     print(f"[Compactor] 壓縮完成：{len(history)} → {len(compacted)} 筆訊息")
     return compacted
