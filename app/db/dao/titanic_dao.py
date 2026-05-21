@@ -8,8 +8,17 @@ from app.config.settings import DATABASE_PATH
 _ALL_FEATURES = ("Pclass", "Sex", "Age", "Fare", "Survived")
 
 _BLOCKED_KEYWORDS = (
-    "drop", "delete", "update", "insert", "alter", "create",
-    "replace", "truncate", "attach", "detach", "pragma",
+    "drop",
+    "delete",
+    "update",
+    "insert",
+    "alter",
+    "create",
+    "replace",
+    "truncate",
+    "attach",
+    "detach",
+    "pragma",
 )
 
 
@@ -19,11 +28,19 @@ class TitanicDAO:
         if not normalized:
             return {"status": "error", "data": None, "message": "SQL 查詢不可為空。"}
         if ";" in normalized:
-            return {"status": "error", "data": None, "message": "只允許單一 SELECT 查詢，禁止使用分號 (;)。"}
+            return {
+                "status": "error",
+                "data": None,
+                "message": "只允許單一 SELECT 查詢，禁止使用分號 (;)。",
+            }
         if not re.match(r"(?is)^select\b", normalized):
             return {"status": "error", "data": None, "message": "只允許 SELECT 查詢。"}
         if re.search(rf"(?i)\b({'|'.join(_BLOCKED_KEYWORDS)})\b", normalized):
-            return {"status": "error", "data": None, "message": "SQL 包含不允許的關鍵字。"}
+            return {
+                "status": "error",
+                "data": None,
+                "message": "SQL 包含不允許的關鍵字。",
+            }
 
         try:
             with sqlite3.connect(DATABASE_PATH) as conn:
@@ -53,7 +70,11 @@ class TitanicDAO:
         is_classification = y.nunique() <= 10 and y.dtype in [int, "int64"]
 
         if not model_name:
-            model_name = "RandomForestClassifier" if is_classification else "RandomForestRegressor"
+            model_name = (
+                "RandomForestClassifier"
+                if is_classification
+                else "RandomForestRegressor"
+            )
 
         model_map = {
             "RandomForestClassifier": RandomForestClassifier,

@@ -36,7 +36,10 @@ _TOOLS = [
                     "Sex": {"type": "integer", "description": "性別：male=0，female=1"},
                     "Age": {"type": "number", "description": "年齡"},
                     "Fare": {"type": "number", "description": "票價"},
-                    "Survived": {"type": "integer", "description": "是否生還（0 或 1）"},
+                    "Survived": {
+                        "type": "integer",
+                        "description": "是否生還（0 或 1）",
+                    },
                     "target": {
                         "type": "string",
                         "enum": ["Pclass", "Sex", "Age", "Fare", "Survived"],
@@ -110,7 +113,9 @@ Agent tool_call: predict_feature(
 
 
 class AgentService:
-    def __init__(self, dao: TitanicDAO, chart_service: ChartService, client: OpenAI, model: str):
+    def __init__(
+        self, dao: TitanicDAO, chart_service: ChartService, client: OpenAI, model: str
+    ):
         self.dao = dao
         self.chart_service = chart_service
         self.client = client
@@ -141,7 +146,9 @@ class AgentService:
             if function_name == "query_database":
                 result = self._handle_query_database(arguments, llm_history, user_input)
             elif function_name == "predict_feature":
-                result = self._handle_predict_feature(arguments, llm_history, user_input)
+                result = self._handle_predict_feature(
+                    arguments, llm_history, user_input
+                )
             else:
                 print(f"Unknown function: {function_name}")
                 continue
@@ -152,35 +159,72 @@ class AgentService:
         final_response = self.client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": "你是一個 Titanic AI 助理，請根據資料庫查詢結果或是預測結果回答"},
-            ] + llm_history,
+                {
+                    "role": "system",
+                    "content": "你是一個 Titanic AI 助理，請根據資料庫查詢結果或是預測結果回答",
+                },
+            ]
+            + llm_history,
         )
-        return {"type": "text", "content": final_response.choices[0].message.content}, compacted_base
+        return {
+            "type": "text",
+            "content": final_response.choices[0].message.content,
+        }, compacted_base
 
-    def _handle_query_database(self, arguments: dict, history: list, user_input: str) -> dict | None:
+    def _handle_query_database(
+        self, arguments: dict, history: list, user_input: str
+    ) -> dict | None:
         result = self.dao.query(arguments["sql_query"])
         print(f"Function result: {result}")
 
         if result["status"] != "success":
-            return {"type": "text", "data": None, "content": result.get("message", "資料庫查詢失敗")}
+            return {
+                "type": "text",
+                "data": None,
+                "content": result.get("message", "資料庫查詢失敗"),
+            }
 
         echarts_json = self.chart_service.generate_echarts(result["data"])
         summary = self.chart_service.generate_summary(user_input, result["data"])
 
-        history.append({"role": "assistant", "type": "echarts", "content": echarts_json, "summary": summary})
+        history.append(
+            {
+                "role": "assistant",
+                "type": "echarts",
+                "content": echarts_json,
+                "summary": summary,
+            }
+        )
         return {"type": "echarts", "content": echarts_json, "summary": summary}
 
-    def _handle_predict_feature(self, arguments: dict, history: list, user_input: str) -> dict | None:
+    def _handle_predict_feature(
+        self, arguments: dict, history: list, user_input: str
+    ) -> dict | None:
         print(f"Predicting with arguments: {arguments}")
         result = self.dao.predict(arguments)
 
-        history.append({"role": "function", "name": "predict_feature", "content": json.dumps(result)})
+        history.append(
+            {
+                "role": "function",
+                "name": "predict_feature",
+                "content": json.dumps(result),
+            }
+        )
 
-        explanation = self.chart_service.generate_prediction_explanation(user_input, result)
+        explanation = self.chart_service.generate_prediction_explanation(
+            user_input, result
+        )
 
         if result.get("feature_importance"):
             echarts_json = self.chart_service.generate_feature_importance_chart(result)
-            history.append({"role": "assistant", "type": "echarts", "content": echarts_json, "summary": explanation})
+            history.append(
+                {
+                    "role": "assistant",
+                    "type": "echarts",
+                    "content": echarts_json,
+                    "summary": explanation,
+                }
+            )
             return {"type": "echarts", "content": echarts_json, "summary": explanation}
 
         history.append({"role": "assistant", "content": explanation})
