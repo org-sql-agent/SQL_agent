@@ -21,9 +21,10 @@ services:
     build: .
     container_name: sql-agent-ui
     command: >
-      streamlit run app/web/ui.py
-      --server.port=1111
-      --server.address=0.0.0.0
+      uvicorn app.web.ui:app
+      --host 0.0.0.0
+      --port 1111
+      --reload
     ports:
       - "1111:1111"
     volumes:
